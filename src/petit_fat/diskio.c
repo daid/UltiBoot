@@ -3,6 +3,7 @@
 /*-----------------------------------------------------------------------*/
 #include <avr/io.h>
 #include <util/delay.h>
+#include <string.h>
 
 #include "diskio.h"
 
@@ -155,6 +156,8 @@ DSTATUS disk_initialize (void)
 /*-----------------------------------------------------------------------*/
 /* Read Partial Sector                                                   */
 /*-----------------------------------------------------------------------*/
+BYTE cacheBlock[514];
+DWORD cacheLBA = -1;
 
 DRESULT disk_readp (
 	BYTE* buff,			/* Pointer to the destination object */
@@ -169,10 +172,14 @@ DRESULT disk_readp (
 
 
 	if (!(CardType & CT_BLOCK)) lba *= 512;		/* Convert to byte address if needed */
+	if (cacheLBA == lba)
+	{
+        memcpy(buff, cacheBlock + ofs, cnt);
+	}
 
 	res = RES_ERROR;
 	if (send_cmd(CMD17, lba) == 0) {		/* READ_SINGLE_BLOCK */
-
+        BYTE* cb = cacheBlock;
 		bc = 40000;
 		do {							/* Wait for data packet */
 			rc = rcv_spi();
@@ -183,16 +190,16 @@ DRESULT disk_readp (
 
 			/* Skip leading bytes */
 			if (ofs) {
-				do rcv_spi(); while (--ofs);
+				do *cb++ = rcv_spi(); while (--ofs);
 			}
 
 			/* Receive a part of the sector */
 			do {
-				*buff++ = rcv_spi();
+				*cb++ = *buff++ = rcv_spi();
 			} while (--cnt);
 
 			/* Skip trailing bytes and CRC */
-			do rcv_spi(); while (--bc);
+			do *cb++ = rcv_spi(); while (--bc);
 
 			res = RES_OK;
 		}

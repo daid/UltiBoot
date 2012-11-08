@@ -17,6 +17,8 @@
 
 #define UART_BAUD 115200
 
+#define BUTTON_PORT D
+#define BUTTON_BIT  2
 /*
  * HW and SW version, reported to AVRISP, must match version of AVRStudio
  */
@@ -31,6 +33,12 @@
 /**********/
 /** CODE **/
 /**********/
+
+#define _MAKE_PORT(name, suffix) name ## suffix
+#define MAKE_PORT(name, suffix) _MAKE_PORT(name, suffix)
+#define CLR_BIT(name) do { MAKE_PORT(PORT, name ## _PORT) &=~_BV(name ## _BIT); } while(0)
+#define SET_BIT(name) do { MAKE_PORT(PORT, name ## _PORT) |= _BV(name ## _BIT); } while(0)
+#define GET_BIT(name) (MAKE_PORT(PIN, name ## _PORT) & _BV(name ## _BIT))
 
 /*
  * Signature bytes are not available in avr-gcc io_xxx.h
@@ -308,9 +316,13 @@ void main()
     uint8_t recvState = STATE_START;
     FATFS fat;
     
-    DEBUG_LED_ON();
     lcd_init();
-    lcd_pstring(PSTR("Ultimaker starting.."));
+    if (pgm_read_byte(0) == 0xFF)
+        lcd_pstring(PSTR("No firmware found..."));
+    else
+        lcd_pstring(PSTR("Ultimaker starting.."));
+    MAKE_PORT(DDR, BUTTON_PORT) |= _BV(BUTTON_BIT);
+    SET_BIT(BUTTON);
     
     //Setup the serial with 8n1, no interrupts and the configured baudrate.
     UCSR0A = _BV(U2X0);
@@ -323,16 +335,80 @@ void main()
     {
         TCCR1B = _BV(CS12) | _BV(CS10);//1024 prescaler for 4 second timeout
         TIFR1 = _BV(TOV1);
-        lcd_home();
-        lcd_pstring(PSTR("Press button to     "));
+        lcd_clear();
+        lcd_pstring(PSTR("Press button to"));
         lcd_set_pos(0x40);
         lcd_pstring(PSTR("upgrade firmware"));
         while(!(TIFR1 & _BV(TOV1)))
         {
-            if (button.pressed)
+            if (pgm_read_byte(0) == 0xFF || !GET_BIT(BUTTON))
             {
-                read_firmware_page
-                write_firmware_page
+                lcd_clear();
+                lcd_pstring(PSTR("Upgrading firmware"));
+                
+                uint8_t buffer[SPM_PAGESIZE];
+                uint32_t address = 0;
+                while(1)
+                {
+                    WORD len;
+                    long oldAddress = address;
+                    
+                    pf_read(buffer, SPM_PAGESIZE, &len);
+                    if (len == 0)
+                        break;
+                    lcd_set_pos(0x40 + address * 20L / fat.fsize);
+                    lcd_send_8bit(0xFF);
+                    //Protect the bootloader
+                    if (address > FLASHEND - BOOTSIZE - SPM_PAGESIZE)
+                        break;
+
+                    boot_page_erase(address);	// Perform page erase
+                    boot_spm_busy_wait();		// Wait until the memory is erased.
+                    uint8_t* c = buffer;
+                    do
+                    {
+                        union16t data;
+                        data.i8[0] = *c++;
+                        data.i8[1] = *c++;
+                        boot_page_fill(address, data.i16);
+                        address += 2;
+                        len -= 2;
+                    } while(len);
+                    boot_page_write(oldAddress);
+                    boot_spm_busy_wait();
+                    boot_rww_enable();
+                }
+                lcd_clear();
+                lcd_pstring(PSTR("Checking firmware"));
+                //Reopen the firmware to reset the file read pointer
+                pf_open("/firmware.bin");
+                address = 0;
+                while(1)
+                {
+                    WORD len;
+                    
+                    pf_read(buffer, SPM_PAGESIZE, &len);
+                    if (len == 0)
+                        break;
+                    lcd_set_pos(0x40 + address * 20L / fat.fsize);
+                    lcd_send_8bit(0xFF);
+                    
+                    uint8_t* c = buffer;
+                    do
+                    {
+                        if (*c++ != pgm_read_byte_far(address))
+                        {
+                            lcd_clear();
+                            lcd_pstring(PSTR("FAILED!"));
+                            while(1);
+                        }
+                        address ++;
+                        len --;
+                    } while(len);
+                }
+                lcd_clear();
+                lcd_pstring(PSTR("DONE!"));
+                break;
             }
         }
     }
@@ -402,7 +478,6 @@ void main()
             }
         }
     }
-    DEBUG_LED_OFF();
     
     //Jump to address 0x0000
 	asm volatile(

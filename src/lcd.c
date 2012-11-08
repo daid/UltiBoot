@@ -161,25 +161,7 @@ void lcd_init()
     lcd_send_8bit(0b00110);
     lcd_send_8bit(0b00011);
 
-    CLEAR_RS();
-    lcd_send_8bit(LCD_CMD_DDRAM_ADDR(0x14));
-    SET_RS();
-    lcd_send_8bit(0);
-    lcd_send_8bit(2);
-    lcd_send_8bit(4);
-    lcd_send_8bit(6);
-
-    CLEAR_RS();
-    lcd_send_8bit(LCD_CMD_DDRAM_ADDR(0x54));
-    SET_RS();
-    lcd_send_8bit(1);
-    lcd_send_8bit(3);
-    lcd_send_8bit(5);
-    lcd_send_8bit(7);
-
-    CLEAR_RS();
-    lcd_send_8bit(LCD_CMD_DDRAM_ADDR(0));
-    SET_RS();
+    lcd_clear();
 }
 
 void lcd_pstring(const char* str)
@@ -192,12 +174,35 @@ void lcd_pstring(const char* str)
     }
 }
 
+void lcd_string(const char* str)
+{
+    char c;
+    while((c = (*str)) != '\0')
+    {
+        lcd_send_8bit(c);
+        str++;
+    }
+}
+
 void lcd_clear()
 {
     CLEAR_RS();
     lcd_send_8bit(LCD_CMD_CLEAR());
     SET_RS();
     _delay_ms(2);
+    lcd_set_pos(0x14);
+    lcd_send_8bit(0);
+    lcd_send_8bit(2);
+    lcd_send_8bit(4);
+    lcd_send_8bit(6);
+
+    lcd_set_pos(0x54);
+    lcd_send_8bit(1);
+    lcd_send_8bit(3);
+    lcd_send_8bit(5);
+    lcd_send_8bit(7);
+
+    lcd_set_pos(0x00);
 }
 
 void lcd_home()
@@ -205,6 +210,7 @@ void lcd_home()
     CLEAR_RS();
     lcd_send_8bit(LCD_CMD_RET_HOME());
     SET_RS();
+    _delay_ms(1);
 }
 
 void lcd_set_pos(uint8_t pos)

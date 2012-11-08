@@ -2,6 +2,7 @@
 #define LCD_H
 
 void lcd_init();
+void lcd_string(const char* str);
 void lcd_pstring(const char* str);
 void lcd_clear();
 void lcd_home();
