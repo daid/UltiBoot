@@ -67,11 +67,23 @@
 #define SEND_SERIAL_DATA(n) do { UDR0 = (n); while(!(UCSR0A & _BV(TXC0))); UCSR0A |= _BV(TXC0); } while(0)
 #define BAUDRATE_DIVIDER() (((F_CPU + (4 * UART_BAUD)) / (8 * UART_BAUD)) - 1)
 
+void serial_send_pstring(const char* str)
+{
+    char c;
+    while((c = pgm_read_byte_far((long)(short)str | 0x10000)) != '\0')
+    {
+        SEND_SERIAL_DATA(c);
+        str++;
+    }
+}
+
+uint8_t __attribute__((section(".noinit"))) MCUSR_backup;
 void disable_watchdog_asap(void) __attribute__((naked)) __attribute__((section(".init3")));
 void disable_watchdog_asap(void)
 {
     //Disable the watchdog timer, it could have been left on after reset. We need to do this ASAP, as the watchdog could trigger before main is called.
     //the .init3 section is run before data initialization.
+    MCUSR_backup = MCUSR;
     MCUSR = 0;
     wdt_disable();
 }
@@ -323,6 +335,20 @@ void main()
     UCSR0C = _BV(UCSZ01) | _BV(UCSZ00);
     UBRR0H = BAUDRATE_DIVIDER() >> 8;
     UBRR0L = BAUDRATE_DIVIDER();
+    
+    if (MCUSR_backup & _BV(WDRF))
+    {
+        //If we had a hardware watchdog timeout, report that to the user and don't do anything else.
+        //As a hardware watchdog error is a critical error and should not recover.
+        lcd_clear();
+        lcd_pstring(PSTR("Hardware watchdog"));
+        lcd_set_pos(0x40);
+        lcd_pstring(PSTR("timeout..."));
+        while(1)
+        {
+            serial_send_pstring(PSTR("Error: Hardware watchdog timeout\n"));
+        }
+    }
 
     if (pf_mount(&fat) == 0 && pf_open("/firmware.bin") == 0)
     {
