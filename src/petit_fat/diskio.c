@@ -6,31 +6,35 @@
 #include <string.h>
 
 #include "diskio.h"
+#include "../pinutil.h"
 
 //Chip select
 #define SD_CS_PORT B
 #define SD_CS_BIT  0
-
 //Card detect
 #define SD_CD_PORT D
 #define SD_CD_BIT  7
+//SPI CLK
+#define SD_CLK_PORT  B
+#define SD_CLK_BIT   1
+//SPI MOSI
+#define SD_MOSI_PORT B
+#define SD_MOSI_BIT  2
+//SPI MISO
+#define SD_MISO_PORT B
+#define SD_MISO_BIT  3
 
-#define _MAKE_PORT(name, suffix) name ## suffix
-#define MAKE_PORT(name, suffix) _MAKE_PORT(name, suffix)
-#define CLR_BIT(name) do { MAKE_PORT(PORT, SD_ ## name ## _PORT) &=~_BV(SD_ ## name ## _BIT); } while(0)
-#define SET_BIT(name) do { MAKE_PORT(PORT, SD_ ## name ## _PORT) |= _BV(SD_ ## name ## _BIT); } while(0)
-
-#define SELECT_SD() CLR_BIT(CS)
-#define UNSELECT_SD() SET_BIT(CS)
+#define SELECT_SD() CLR_PIN(SD_CS)
+#define UNSELECT_SD() SET_PIN(SD_CS)
 
 void init_spi()
 {
     //Set the ChipSelect to output, and the CardDetect to input will pullup.
-    MAKE_PORT(DDR, SD_CS_PORT) |= _BV(SD_CS_BIT);
-    MAKE_PORT(PORT, SD_CD_PORT) |= _BV(SD_CD_BIT);
+    SET_PIN_AS_OUTPUT(SD_CS);
+    SET_PIN(SD_CD);
     //Set the SPI pins to outputs
-    DDRB |= _BV(1);
-    DDRB |= _BV(2);
+    SET_PIN_AS_OUTPUT(SD_CLK);
+    SET_PIN_AS_OUTPUT(SD_MOSI);
     UNSELECT_SD();
     
     SPCR = _BV(SPE) | _BV(MSTR);
@@ -114,9 +118,8 @@ DSTATUS disk_initialize (void)
 	UINT tmr;
 
 	init_spi();							/* Initialize ports to control MMC */
-	if (MAKE_PORT(PIN, SD_CD_PORT) & _BV(SD_CD_BIT))
-	{
-        //If the CardDetect pin is high then we don't have an SD card.
+	if (GET_PIN(SD_CD))
+	{   //If the CardDetect pin is high then we don't have an SD card.
         return STA_NOINIT;
 	}
 	_delay_ms(100);

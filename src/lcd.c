@@ -2,6 +2,7 @@
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 
+#include "pinutil.h"
 #include "lcd.h"
 
 /** Display line config **/
@@ -29,27 +30,22 @@
 #define LCD_CMD_CGRAM_ADDR(addr)               (0x40 | (addr))
 #define LCD_CMD_DDRAM_ADDR(addr)               (0x80 | (addr))
 
-#define _MAKE_PORT(name, suffix) name ## suffix
-#define MAKE_PORT(name, suffix) _MAKE_PORT(name, suffix)
-#define CLR_BIT(name) do { MAKE_PORT(PORT, LCD_ ## name ## _PORT) &=~_BV(LCD_ ## name ## _BIT); } while(0)
-#define SET_BIT(name) do { MAKE_PORT(PORT, LCD_ ## name ## _PORT) |= _BV(LCD_ ## name ## _BIT); } while(0)
-
-#define SET_RS()   SET_BIT(RS)
-#define CLEAR_RS() CLR_BIT(RS)
+#define SET_RS()   SET_PIN(LCD_RS)
+#define CLEAR_RS() CLR_PIN(LCD_RS)
 
 static void lcd_send_4bit(uint8_t bits)
 {
-    CLR_BIT(D4);
-    CLR_BIT(D5);
-    CLR_BIT(D6);
-    CLR_BIT(D7);
-    if ((bits) & 0x01) SET_BIT(D4);
-    if ((bits) & 0x02) SET_BIT(D5);
-    if ((bits) & 0x04) SET_BIT(D6);
-    if ((bits) & 0x08) SET_BIT(D7);
-    SET_BIT(EN);
+    CLR_PIN(LCD_D4);
+    CLR_PIN(LCD_D5);
+    CLR_PIN(LCD_D6);
+    CLR_PIN(LCD_D7);
+    if ((bits) & 0x01) SET_PIN(LCD_D4);
+    if ((bits) & 0x02) SET_PIN(LCD_D5);
+    if ((bits) & 0x04) SET_PIN(LCD_D6);
+    if ((bits) & 0x08) SET_PIN(LCD_D7);
+    SET_PIN(LCD_EN);
     _delay_us(1);
-    CLR_BIT(EN);
+    CLR_PIN(LCD_EN);
 }
 
 void lcd_send_8bit(uint8_t bits)
@@ -62,12 +58,12 @@ void lcd_send_8bit(uint8_t bits)
 //See: http://web.alfredstate.edu/weimandn/lcd/lcd_initialization/lcd_initialization_index.html
 void lcd_init()
 {
-    MAKE_PORT(DDR, LCD_RS_PORT) |= _BV(LCD_RS_BIT);
-    MAKE_PORT(DDR, LCD_EN_PORT) |= _BV(LCD_EN_BIT);
-    MAKE_PORT(DDR, LCD_D4_PORT) |= _BV(LCD_D4_BIT);
-    MAKE_PORT(DDR, LCD_D5_PORT) |= _BV(LCD_D5_BIT);
-    MAKE_PORT(DDR, LCD_D6_PORT) |= _BV(LCD_D6_BIT);
-    MAKE_PORT(DDR, LCD_D7_PORT) |= _BV(LCD_D7_BIT);
+    SET_PIN_AS_OUTPUT(LCD_RS);
+    SET_PIN_AS_OUTPUT(LCD_EN);
+    SET_PIN_AS_OUTPUT(LCD_D4);
+    SET_PIN_AS_OUTPUT(LCD_D5);
+    SET_PIN_AS_OUTPUT(LCD_D6);
+    SET_PIN_AS_OUTPUT(LCD_D7);
     
     _delay_ms(100);
     CLEAR_RS();

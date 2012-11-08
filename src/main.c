@@ -4,6 +4,7 @@
 #include <util/delay.h>
 #include <avr/pgmspace.h>
 
+#include "pinutil.h"
 #include "command.h"
 #include "lcd.h"
 #include "petit_fat/pff.h"
@@ -33,12 +34,6 @@
 /**********/
 /** CODE **/
 /**********/
-
-#define _MAKE_PORT(name, suffix) name ## suffix
-#define MAKE_PORT(name, suffix) _MAKE_PORT(name, suffix)
-#define CLR_BIT(name) do { MAKE_PORT(PORT, name ## _PORT) &=~_BV(name ## _BIT); } while(0)
-#define SET_BIT(name) do { MAKE_PORT(PORT, name ## _PORT) |= _BV(name ## _BIT); } while(0)
-#define GET_BIT(name) (MAKE_PORT(PIN, name ## _PORT) & _BV(name ## _BIT))
 
 /*
  * Signature bytes are not available in avr-gcc io_xxx.h
@@ -71,9 +66,6 @@
 #define RECV_SERIAL_DATA() (UDR0)
 #define SEND_SERIAL_DATA(n) do { UDR0 = (n); while(!(UCSR0A & _BV(TXC0))); UCSR0A |= _BV(TXC0); } while(0)
 #define BAUDRATE_DIVIDER() (((F_CPU + (4 * UART_BAUD)) / (8 * UART_BAUD)) - 1)
-
-#define DEBUG_LED_ON() do { DDRB |= 0x80; PORTB |= 0x80; } while(0)
-#define DEBUG_LED_OFF() do { PORTB &=~0x80; } while(0)
 
 void disable_watchdog_asap(void) __attribute__((naked)) __attribute__((section(".init3")));
 void disable_watchdog_asap(void)
@@ -314,15 +306,16 @@ static void handleMessage()
 void main()
 {
     uint8_t recvState = STATE_START;
+    uint8_t hasFirmware = (pgm_read_byte(0) == 0xFF);
     FATFS fat;
     
     lcd_init();
-    if (pgm_read_byte(0) == 0xFF)
+    if (hasFirmware)
         lcd_pstring(PSTR("No firmware found..."));
     else
         lcd_pstring(PSTR("Ultimaker starting.."));
-    MAKE_PORT(DDR, BUTTON_PORT) |= _BV(BUTTON_BIT);
-    SET_BIT(BUTTON);
+    
+    SET_PIN(BUTTON);//Enable the pull-up on the button input.
     
     //Setup the serial with 8n1, no interrupts and the configured baudrate.
     UCSR0A = _BV(U2X0);
@@ -335,13 +328,15 @@ void main()
     {
         TCCR1B = _BV(CS12) | _BV(CS10);//1024 prescaler for 4 second timeout
         TIFR1 = _BV(TOV1);
+        TCNT1H = 0;
+        TCNT1L = 0;
         lcd_clear();
         lcd_pstring(PSTR("Press button to"));
         lcd_set_pos(0x40);
         lcd_pstring(PSTR("upgrade firmware"));
         while(!(TIFR1 & _BV(TOV1)))
         {
-            if (pgm_read_byte(0) == 0xFF || !GET_BIT(BUTTON))
+            if (hasFirmware || !GET_PIN(BUTTON))
             {
                 lcd_clear();
                 lcd_pstring(PSTR("Upgrading firmware"));
@@ -419,6 +414,8 @@ void main()
     //TCCR1B = _BV(CS12) | _BV(CS10);//1024 prescaler
     TCCR1B = _BV(CS12);//256 prescaler
     TIFR1 = _BV(TOV1);
+    TCNT1H = 0;
+    TCNT1L = 0;
     
     while(!(TIFR1 & _BV(TOV1)))
     {
