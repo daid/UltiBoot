@@ -326,7 +326,7 @@ void main()
         lcd_pstring(PSTR("No firmware found..."));
     else
         lcd_pstring(PSTR("Ultimaker starting.."));
-    
+        
     SET_PIN(BUTTON);//Enable the pull-up on the button input.
     
     //Setup the serial with 8n1, no interrupts and the configured baudrate.
@@ -350,6 +350,75 @@ void main()
         }
     }
 
+    //Setup a bootloader timeout timer, use a 16bit timer. And wait for the overflow.
+    //With a 1024 prescaler this gives a ~4.1 second timeout.
+    //With a 256 prescaler this gives a ~1 second timeout.
+    //TCCR1B = _BV(CS12) | _BV(CS10);//1024 prescaler
+    TCCR1B = _BV(CS12);//256 prescaler
+    TIFR1 = _BV(TOV1);
+    TCNT1H = 0;
+    TCNT1L = 0;
+    
+    while(!(TIFR1 & _BV(TOV1)))
+    {
+        if (SERIAL_DATA_AVAILABLE())
+        {
+            uint8_t data = RECV_SERIAL_DATA();
+            
+            checksum ^= data;
+            switch(recvState)
+            {
+            case STATE_START:
+                if (data == MESSAGE_START)
+                {
+                    recvState = STATE_SEQ;
+                    checksum = MESSAGE_START;
+                    //Reset the bootloader timeout
+                    TCNT1H = 0;
+                    TCNT1L = 0;
+                }
+                break;
+            case STATE_SEQ:
+                if ((data == 1) || (data == seq))
+                {
+                    seq = data;
+                    recvState = STATE_SIZE_1;
+                }else{
+                    recvState = STATE_START;
+                }
+                break;
+            case STATE_SIZE_1:
+                msgLen.i8[1] = data;
+                recvState = STATE_SIZE_2;
+                break;
+            case STATE_SIZE_2:
+                msgLen.i8[0] = data;
+                recvState = STATE_TOKEN;
+                break;
+            case STATE_TOKEN:
+                if (data == TOKEN)
+                {
+                    recvState = STATE_DATA;
+                    msgPos = 0;
+                }else{
+                    recvState = STATE_START;
+                }
+                break;
+            case STATE_DATA:
+                msgBuffer[msgPos++] = data;
+                if (msgPos == msgLen.i16)
+                    recvState = STATE_CHECK;
+                break;
+            case STATE_CHECK:
+                if (checksum == 0)
+                    handleMessage();
+                recvState = STATE_START;
+                break;
+            }
+        }
+    }
+
+    //Try the SD card to see if there is a firmware on it.
     if (pf_mount(&fat) == 0 && pf_open("/firmware.bin") == 0)
     {
         TCCR1B = _BV(CS12) | _BV(CS10);//1024 prescaler for 4 second timeout
@@ -429,74 +498,6 @@ void main()
                 }
                 lcd_clear();
                 lcd_pstring(PSTR("DONE!"));
-                break;
-            }
-        }
-    }
-
-    //Setup a bootloader timeout timer, use a 16bit timer. And wait for the overflow.
-    //With a 1024 prescaler this gives a ~4.1 second timeout.
-    //With a 256 prescaler this gives a ~1 second timeout.
-    //TCCR1B = _BV(CS12) | _BV(CS10);//1024 prescaler
-    TCCR1B = _BV(CS12);//256 prescaler
-    TIFR1 = _BV(TOV1);
-    TCNT1H = 0;
-    TCNT1L = 0;
-    
-    while(!(TIFR1 & _BV(TOV1)))
-    {
-        if (SERIAL_DATA_AVAILABLE())
-        {
-            uint8_t data = RECV_SERIAL_DATA();
-            
-            checksum ^= data;
-            switch(recvState)
-            {
-            case STATE_START:
-                if (data == MESSAGE_START)
-                {
-                    recvState = STATE_SEQ;
-                    checksum = MESSAGE_START;
-                    //Reset the bootloader timeout
-                    TCNT1H = 0;
-                    TCNT1L = 0;
-                }
-                break;
-            case STATE_SEQ:
-                if ((data == 1) || (data == seq))
-                {
-                    seq = data;
-                    recvState = STATE_SIZE_1;
-                }else{
-                    recvState = STATE_START;
-                }
-                break;
-            case STATE_SIZE_1:
-                msgLen.i8[1] = data;
-                recvState = STATE_SIZE_2;
-                break;
-            case STATE_SIZE_2:
-                msgLen.i8[0] = data;
-                recvState = STATE_TOKEN;
-                break;
-            case STATE_TOKEN:
-                if (data == TOKEN)
-                {
-                    recvState = STATE_DATA;
-                    msgPos = 0;
-                }else{
-                    recvState = STATE_START;
-                }
-                break;
-            case STATE_DATA:
-                msgBuffer[msgPos++] = data;
-                if (msgPos == msgLen.i16)
-                    recvState = STATE_CHECK;
-                break;
-            case STATE_CHECK:
-                if (checksum == 0)
-                    handleMessage();
-                recvState = STATE_START;
                 break;
             }
         }
