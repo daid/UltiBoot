@@ -7,22 +7,7 @@
 
 #include "diskio.h"
 #include "../pinutil.h"
-
-//Chip select
-#define SD_CS_PORT B
-#define SD_CS_BIT  0
-//Card detect
-#define SD_CD_PORT D
-#define SD_CD_BIT  7
-//SPI CLK
-#define SD_CLK_PORT  B
-#define SD_CLK_BIT   1
-//SPI MOSI
-#define SD_MOSI_PORT B
-#define SD_MOSI_BIT  2
-//SPI MISO
-#define SD_MISO_PORT B
-#define SD_MISO_BIT  3
+#include "../pinconfig.h"
 
 #define SELECT_SD() CLR_PIN(SD_CS)
 #define UNSELECT_SD() SET_PIN(SD_CS)

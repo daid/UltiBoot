@@ -5,6 +5,7 @@
 #include <avr/pgmspace.h>
 
 #include "pinutil.h"
+#include "pinconfig.h"
 #include "command.h"
 #include "lcd.h"
 #include "petit_fat/pff.h"
@@ -18,8 +19,6 @@
 
 #define UART_BAUD 115200
 
-#define BUTTON_PORT D
-#define BUTTON_BIT  2
 /*
  * HW and SW version, reported to AVRISP, must match version of AVRStudio
  */

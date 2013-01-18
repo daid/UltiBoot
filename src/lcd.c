@@ -3,21 +3,9 @@
 #include <util/delay.h>
 
 #include "pinutil.h"
+#include "pinconfig.h"
 #include "lcd.h"
 
-/** Display line config **/
-#define LCD_RS_PORT D
-#define LCD_RS_BIT  1
-#define LCD_EN_PORT H
-#define LCD_EN_BIT  0
-#define LCD_D4_PORT H
-#define LCD_D4_BIT  1
-#define LCD_D5_PORT D
-#define LCD_D5_BIT  0
-#define LCD_D6_PORT E
-#define LCD_D6_BIT  3
-#define LCD_D7_PORT H
-#define LCD_D7_BIT  3
 
 /*************************/
 
