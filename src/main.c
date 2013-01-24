@@ -231,6 +231,25 @@ static void handleMessage()
             }while(size.i16);
         }
         break;
+    case CMD_ULTI_CHECKSUM:
+        {
+            union16t checksum;
+            uint32_t tmpAddr = 0;
+            checksum.i16 = 0;
+            while(tmpAddr < address.i32)
+            {
+                union16t tmp;
+                tmp.i16 = pgm_read_word_far(tmpAddr);
+                checksum.i16 += tmp.i8[0];
+                checksum.i16 += tmp.i8[1];
+                tmpAddr += 2;
+            }
+            msgBuffer[2] = checksum.i8[0];
+            msgBuffer[3] = checksum.i8[1];
+            msgLen.i16 = 4;
+            msgBuffer[1] = STATUS_CMD_OK;
+        }
+        break;
 //    case CMD_PROGRAM_EEPROM_ISP:
         //TODO
         break;

@@ -42,6 +42,8 @@
 #define CMD_READ_OSCCAL_ISP                 0x1C
 #define CMD_SPI_MULTI                       0x1D
 
+#define CMD_ULTI_CHECKSUM                   0xEE
+
 // *****************[ STK PP command constants ]*******************************
 
 #define CMD_ENTER_PROGMODE_PP               0x20
