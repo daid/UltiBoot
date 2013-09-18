@@ -1,6 +1,8 @@
 #ifndef LCD_H
 #define LCD_H
 
+#include <stdint.h>
+
 void lcd_init();
 void lcd_string(const char* str);
 void lcd_pstring(const char* str);

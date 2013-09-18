@@ -6,20 +6,22 @@
 #include <string.h>
 
 #include "diskio.h"
-#include "../pinutil.h"
+#include "../fastio.h"
 #include "../pinconfig.h"
 
-#define SELECT_SD() CLR_PIN(SD_CS)
-#define UNSELECT_SD() SET_PIN(SD_CS)
+#define SELECT_SD() WRITE(SDSS, 0)
+#define UNSELECT_SD() WRITE(SDSS, 1)
 
 void init_spi()
 {
     //Set the ChipSelect to output, and the CardDetect to input will pullup.
-    SET_PIN_AS_OUTPUT(SD_CS);
-    SET_PIN(SD_CD);
+    SET_OUTPUT(SDSS);
+    SET_INPUT(SDCARDDETECT);
+    WRITE(SDCARDDETECT, 1);
+
     //Set the SPI pins to outputs
-    SET_PIN_AS_OUTPUT(SD_CLK);
-    SET_PIN_AS_OUTPUT(SD_MOSI);
+    SET_OUTPUT(SCK_PIN);
+    SET_OUTPUT(MOSI_PIN);
     UNSELECT_SD();
     
     SPCR = _BV(SPE) | _BV(MSTR);
@@ -103,7 +105,7 @@ DSTATUS disk_initialize (void)
 	UINT tmr;
 
 	init_spi();							/* Initialize ports to control MMC */
-	if (GET_PIN(SD_CD))
+	if (READ(SDCARDDETECT))
 	{   //If the CardDetect pin is high then we don't have an SD card.
         return STA_NOINIT;
 	}

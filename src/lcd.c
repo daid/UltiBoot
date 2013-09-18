@@ -2,10 +2,11 @@
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 
-#include "pinutil.h"
+#include "fastio.h"
 #include "pinconfig.h"
 #include "lcd.h"
 
+#if MOTHERBOARD != 72
 
 /*************************/
 
@@ -18,22 +19,22 @@
 #define LCD_CMD_CGRAM_ADDR(addr)               (0x40 | (addr))
 #define LCD_CMD_DDRAM_ADDR(addr)               (0x80 | (addr))
 
-#define SET_RS()   SET_PIN(LCD_RS)
-#define CLEAR_RS() CLR_PIN(LCD_RS)
+#define SET_RS()   WRITE(LCD_PINS_RS, 1)
+#define CLEAR_RS() WRITE(LCD_PINS_RS, 0)
 
 static void lcd_send_4bit(uint8_t bits)
 {
-    CLR_PIN(LCD_D4);
-    CLR_PIN(LCD_D5);
-    CLR_PIN(LCD_D6);
-    CLR_PIN(LCD_D7);
-    if ((bits) & 0x01) SET_PIN(LCD_D4);
-    if ((bits) & 0x02) SET_PIN(LCD_D5);
-    if ((bits) & 0x04) SET_PIN(LCD_D6);
-    if ((bits) & 0x08) SET_PIN(LCD_D7);
-    SET_PIN(LCD_EN);
+    WRITE(LCD_PINS_D4, 0);
+    WRITE(LCD_PINS_D5, 0);
+    WRITE(LCD_PINS_D6, 0);
+    WRITE(LCD_PINS_D7, 0);
+    if ((bits) & 0x01) WRITE(LCD_PINS_D4, 1);
+    if ((bits) & 0x02) WRITE(LCD_PINS_D5, 1);
+    if ((bits) & 0x04) WRITE(LCD_PINS_D6, 1);
+    if ((bits) & 0x08) WRITE(LCD_PINS_D7, 1);
+    WRITE(LCD_PINS_ENABLE, 1);
     _delay_us(1);
-    CLR_PIN(LCD_EN);
+    WRITE(LCD_PINS_ENABLE, 0);
 }
 
 void lcd_send_8bit(uint8_t bits)
@@ -46,12 +47,12 @@ void lcd_send_8bit(uint8_t bits)
 //See: http://web.alfredstate.edu/weimandn/lcd/lcd_initialization/lcd_initialization_index.html
 void lcd_init()
 {
-    SET_PIN_AS_OUTPUT(LCD_RS);
-    SET_PIN_AS_OUTPUT(LCD_EN);
-    SET_PIN_AS_OUTPUT(LCD_D4);
-    SET_PIN_AS_OUTPUT(LCD_D5);
-    SET_PIN_AS_OUTPUT(LCD_D6);
-    SET_PIN_AS_OUTPUT(LCD_D7);
+    SET_OUTPUT(LCD_PINS_D4);
+    SET_OUTPUT(LCD_PINS_D5);
+    SET_OUTPUT(LCD_PINS_D6);
+    SET_OUTPUT(LCD_PINS_D7);
+    SET_OUTPUT(LCD_PINS_ENABLE);
+    SET_OUTPUT(LCD_PINS_RS);
     
     _delay_ms(100);
     CLEAR_RS();
@@ -203,3 +204,5 @@ void lcd_set_pos(uint8_t pos)
     lcd_send_8bit(LCD_CMD_DDRAM_ADDR(pos));
     SET_RS();
 }
+
+#endif

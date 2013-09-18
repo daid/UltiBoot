@@ -3,12 +3,14 @@
 #include <avr/wdt.h>
 #include <util/delay.h>
 #include <avr/pgmspace.h>
+#include <avr/eeprom.h>
 
-#include "pinutil.h"
+#include "fastio.h"
 #include "pinconfig.h"
 #include "command.h"
 #include "lcd.h"
 #include "petit_fat/pff.h"
+#include "leds.h"
 
 //ATMega1280: Linker setting: -Wl,--section-start=.text=0x1E000
 //ATMega2560: Linker setting: -Wl,--section-start=.text=0x3E000
@@ -177,6 +179,12 @@ static void handleMessage()
     case CMD_CHIP_ERASE_ISP:
         msgLen.i16 		=	2;
         msgBuffer[1] 	=	STATUS_CMD_OK;
+
+        {
+            uint16_t n;
+            for(n=0; n<E2END; n++)
+                eeprom_write_byte((unsigned char*)n, 0xFF);
+        }
         break;
     case CMD_PROGRAM_FLASH_ISP:
         {
@@ -195,7 +203,7 @@ static void handleMessage()
             //Protect the bootloader
             if (address.i32 > FLASHEND - BOOTSIZE - SPM_PAGESIZE)
                 break;
-
+            
             boot_page_erase(address.i32);	// Perform page erase
 			boot_spm_busy_wait();		// Wait until the memory is erased.
 			do
@@ -341,11 +349,14 @@ void main()
     
     lcd_init();
     if (hasFirmware)
+    {
         lcd_pstring(PSTR("No firmware found..."));
-    else
+    }else{
         lcd_pstring(PSTR("Ultimaker starting.."));
-        
-    SET_PIN(BUTTON);//Enable the pull-up on the button input.
+    }
+    
+    SET_INPUT(BTN_ENC);
+    WRITE(BTN_ENC, 1);//Enable the pull-up on the button input.
     
     //Setup the serial with 8n1, no interrupts and the configured baudrate.
     UCSR0A = _BV(U2X0);
@@ -362,6 +373,7 @@ void main()
         lcd_pstring(PSTR("Hardware watchdog"));
         lcd_set_pos(0x40);
         lcd_pstring(PSTR("timeout..."));
+        led_write(8, 0x01);
         while(1)
         {
             serial_send_pstring(PSTR("Error: Hardware watchdog timeout\n"));
@@ -373,6 +385,7 @@ void main()
     //With a 256 prescaler this gives a ~1 second timeout.
     //TCCR1B = _BV(CS12) | _BV(CS10);//1024 prescaler
     TCCR1B = _BV(CS12);//256 prescaler
+    //TCCR1B = _BV(CS11) | _BV(CS10);//64 prescaler
     TIFR1 = _BV(TOV1);
     TCNT1H = 0;
     TCNT1L = 0;
@@ -394,6 +407,7 @@ void main()
                     //Reset the bootloader timeout
                     TCNT1H = 0;
                     TCNT1L = 0;
+                    led_write(8, 0x00);
                 }
                 break;
             case STATE_SEQ:
@@ -428,6 +442,7 @@ void main()
                     recvState = STATE_CHECK;
                 break;
             case STATE_CHECK:
+                led_write(8, 0x2A);
                 if (checksum == 0)
                     handleMessage();
                 recvState = STATE_START;
@@ -439,6 +454,7 @@ void main()
     //Try the SD card to see if there is a firmware on it.
     if (pf_mount(&fat) == 0 && pf_open("/firmware.bin") == 0)
     {
+        led_write(8, 0x0A);
         TCCR1B = _BV(CS12) | _BV(CS10);//1024 prescaler for 4 second timeout
         TIFR1 = _BV(TOV1);
         TCNT1H = 0;
@@ -449,7 +465,7 @@ void main()
         lcd_pstring(PSTR("upgrade firmware"));
         while(!(TIFR1 & _BV(TOV1)))
         {
-            if (hasFirmware || !GET_PIN(BUTTON))
+            if (hasFirmware || !READ(BTN_ENC))
             {
                 lcd_clear();
                 lcd_pstring(PSTR("Upgrading firmware"));
@@ -520,7 +536,7 @@ void main()
             }
         }
     }
-    
+
     //Jump to address 0x0000
 	asm volatile(
 			"clr	r30		\n\t"
