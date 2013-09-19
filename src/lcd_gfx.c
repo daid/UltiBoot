@@ -83,7 +83,7 @@ void lcd_init()
     WRITE(LCD_RESET_PIN, 0);
     _delay_ms(1);
     WRITE(LCD_RESET_PIN, 1);
-    _delay_ms(100);
+    //_delay_ms(100);
 
     SET_OUTPUT(15);
     WRITE(15, 0);
@@ -102,7 +102,7 @@ void lcd_init()
     led_write(6, 0xFF);//GRPPWM
     led_write(7, 0x00);//GRPFREQ
     led_write(8, 0x00);//LEDOUT
-
+/*
     i2c_start();
     i2c_send_raw(I2C_LCD_ADDRESS << 1 | I2C_WRITE);
     i2c_send_raw(I2C_LCD_SEND_COMMAND);
@@ -147,6 +147,7 @@ void lcd_init()
     i2c_end();
 
     lcd_clear();
+*/
 }
 
 void lcd_string(const char* str) {}
@@ -154,6 +155,7 @@ void lcd_pstring(const char* str) {}
 
 void lcd_clear()
 {
+    /*
     uint16_t n;
     
     i2c_start();
@@ -170,6 +172,7 @@ void lcd_clear()
     for(n=0; n<128*64/8; n++)
         i2c_send_raw(0);
     i2c_end();
+    */
 }
 void lcd_home() {}
 

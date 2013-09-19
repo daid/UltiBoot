@@ -188,8 +188,8 @@ static void handleMessage()
         break;
     case CMD_PROGRAM_FLASH_ISP:
         {
-            lcd_home();
-            lcd_pstring(PSTR("Loading new firmware"));
+            //lcd_home();
+            //lcd_pstring(PSTR("Loading new firmware"));
             
             union16t size;
             size.i8[0] = msgBuffer[2];
@@ -347,12 +347,12 @@ void main()
     uint8_t hasFirmware = (pgm_read_byte(0) == 0xFF);
     FATFS fat;
     
-    lcd_init();
+    //lcd_init();
     if (hasFirmware)
     {
-        lcd_pstring(PSTR("No firmware found..."));
+        //lcd_pstring(PSTR("No firmware found..."));
     }else{
-        lcd_pstring(PSTR("Ultimaker starting.."));
+        //lcd_pstring(PSTR("Ultimaker starting.."));
     }
     
     SET_INPUT(BTN_ENC);
@@ -369,11 +369,11 @@ void main()
     {
         //If we had a hardware watchdog timeout, report that to the user and don't do anything else.
         //As a hardware watchdog error is a critical error and should not recover.
-        lcd_clear();
-        lcd_pstring(PSTR("Hardware watchdog"));
-        lcd_set_pos(0x40);
-        lcd_pstring(PSTR("timeout..."));
-        led_write(8, 0x01);
+        //lcd_clear();
+        //lcd_pstring(PSTR("Hardware watchdog"));
+        //lcd_set_pos(0x40);
+        //lcd_pstring(PSTR("timeout..."));
+        //led_write(8, 0x01);
         while(1)
         {
             serial_send_pstring(PSTR("Error: Hardware watchdog timeout\n"));
@@ -407,7 +407,7 @@ void main()
                     //Reset the bootloader timeout
                     TCNT1H = 0;
                     TCNT1L = 0;
-                    led_write(8, 0x00);
+                    //led_write(8, 0x00);
                 }
                 break;
             case STATE_SEQ:
@@ -442,7 +442,7 @@ void main()
                     recvState = STATE_CHECK;
                 break;
             case STATE_CHECK:
-                led_write(8, 0x2A);
+                //led_write(8, 0x2A);
                 if (checksum == 0)
                     handleMessage();
                 recvState = STATE_START;
@@ -451,6 +451,7 @@ void main()
         }
     }
 
+    /*
     //Try the SD card to see if there is a firmware on it.
     if (pf_mount(&fat) == 0 && pf_open("/firmware.bin") == 0)
     {
@@ -536,6 +537,7 @@ void main()
             }
         }
     }
+    */
 
     //Jump to address 0x0000
 	asm volatile(
